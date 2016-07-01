@@ -1,4 +1,5 @@
-# Smile
+# Love Jones
+>>>>>>> 66a8a801988322dffbd8e63c1ad5904cc49ff477
 Webpack, React/Redux, Node/Express.
 User auth with JSON Web Tokens, state-wide notifications system.
 
