@@ -1,6 +1,4 @@
 # Smile
-Show off them pretty pearlies!
-
 Webpack, React/Redux, Node/Express.
 User auth with JSON Web Tokens, state-wide notifications system.
 
