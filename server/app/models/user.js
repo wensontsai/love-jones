@@ -1,10 +1,17 @@
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
-
-module.exports = mongoose.model('User', new Schema({
-  firstName : { type : String },
-  lastName : { type : String },
-  email : { type : String },
-  password: { type : String },
-  admin : { type : String }
-}));
+'use strict';
+module.exports = function(sequelize, DataTypes) {
+  var User = sequelize.define('User', {
+    first_name: DataTypes.STRING,
+    last_name: DataTypes.STRING,
+    username: DataTypes.STRING,
+    password: DataTypes.STRING,
+    email: DataTypes.STRING
+  }, {
+    classMethods: {
+      associate: function(models) {
+        User.hasMany(models.Item, { foreignKey: 'user_id'})
+      }
+    }
+  });
+  return User;
+};

@@ -1,37 +1,37 @@
-var express = require('express');
-var mongoose = require('mongoose');
-var bodyParser = require('body-parser');
-var cookieParser = require('cookie-parser');
-var morgan = require('morgan');
-var jwt = require('jsonwebtoken');
+import express from 'express';
+import mongoose from 'mongoose';
+import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
+import jwt from 'jsonwebtoken';
 
-var config = require ('../config');
-var app = express();
+const app = express();
 
-// ~~~~~> TESTING: tests spin up test DB from individual specs <~~~~~
-if (process.env.NODE_ENV === 'test') {
-  var port = 3121;
-  var db_success_msg = '';
-  var server_success_msg = '==> 🌎  *** TEST ENV *** fired up <== on port: ' +port;
-}
-else {
-// Fire up DEVELOPMENT database
-  var port = process.env.PORT || 3001;
-  var db_success_msg = '~~~ > > > DEV ENV: Connected to MongoDB boyyÿÿÿÿÿÿ < < < ~~~';
-  var server_success_msg = '==> 🌎  DEV ENV: Magic is happening at http://localhost:' +port;
 
-  // ------------------------------------
-  // Mongo DB Connect
-  // ------------------------------------
-  mongoose.connect(config.db.dev, function(err) {
-    if(err) {
-      console.log('connection error', err);
+// ------------------------------------
+// Environment 
+// ------------------------------------
+const environment = ( () => {
+  let port = (env) => {
+    if(env === 'TEST') {
+      return 3121;
     } else {
-      console.log(db_success_msg);
+      return 3001;
     }
-  });
-  app.set('secret', config.secret); // sets secret variable
-}
+  }
+  let successMsg = (env) => {
+    if(env === 'TEST') {
+      return '🌎  *** TEST ENV *** fired up <== on port: ' + port();
+    } else {
+      return '🌎  DEV ENV: Magic is happening at http://localhost: '+ port();
+    }
+  }
+  return {
+    port: port,
+    successMsg: successMsg
+  }
+})();
+
 
 // ------------------------------------
 // Middleware
@@ -41,15 +41,16 @@ app.use(bodyParser.urlencoded( { extended: false } ));
 // app.use(morgan('dev'));
 app.use(cookieParser());
 
-
-// JWT Token Verification for Admin Routes
-function isAuthenticated(req, res, next) {
+/*
+/ JWT Token Verification for Admin Routes 
+*/
+const isAuthenticated = (req, res, next) => {
   // check header, or url parameters, or post parameters for token
-  var token = req.body.token || req.query.token || req.headers['x-access-token'];
+  let token = req.body.token || req.query.token || req.headers['x-access-token'];
   // decode token
   if (token) {
     // verify secret and check expiration
-    jwt.verify(token, app.get('secret'), function(err, decoded) {
+    jwt.verify(token, app.get('secret'), (err, decoded) => {
       if (err) {
         return res.json( { success: false, message: 'Failed to authenticate token!' } );
       }
@@ -63,42 +64,73 @@ function isAuthenticated(req, res, next) {
       message: 'No token provided!'
     });
   }
-
 }
 
 
 // ------------------------------------
-// Mongoose - Models
+// Sequelize - Models
 // ------------------------------------
-var User = require('./models/user');
-var Session = require('./models/session');
+const models = require('./models/index');
+const User = models.User;
+
+
+
 
 // ------------------------------------
 // API Routes
 // ------------------------------------
-var apiRoutes = express.Router ();
+const apiRoutes = express.Router ();
 app.use('/api', apiRoutes);
 
-var userRoutes = require('./routes/userRoutes');
-var sessionRoutes = require('./routes/sessionRoutes');
+const userRoutes = require('./routes/userRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
 
+
+/*
+// ::::: ERROR HANDLING :::::
+*/
+app.use((req, res, next) => {
+  var err = new Error('Not Found');
+  err.status = 404;
+  next(err);
+});
+
+app.use((err, req, res, next) => {
+  res.status(err.status || 500);
+  res.render('error', {
+    message: err.message,
+    error: (app.get('env') === 'development') ? err : {}
+  });
+});
+
+
+/*
 // ::::: GET :::::
-apiRoutes.get('/queryAllUsers', isAuthenticated, userRoutes.queryAllUsers(User));
+*/
+// apiRoutes.get('/queryAllUsers', isAuthenticated, userRoutes.queryAllUsers(User));
 
+
+/*
 // ::::: POST :::::
-apiRoutes.post('/addUser', isAuthenticated, userRoutes.addUser(User));
-apiRoutes.post('/loginUser', sessionRoutes.loginUser(User, Session));
-apiRoutes.post('/logoutUser', isAuthenticated, sessionRoutes.logoutUser(User, Session));
-apiRoutes.post('/authenticateUser', sessionRoutes.authenticateUser(User, Session));
+*/
+apiRoutes.get('/addUser', userRoutes.addUser(User));
+// apiRoutes.post('/addUser', isAuthenticated, userRoutes.addUser(User));
+// apiRoutes.post('/loginUser', sessionRoutes.loginUser(User, Session));
+// apiRoutes.post('/logoutUser', isAuthenticated, sessionRoutes.logoutUser(User, Session));
+// apiRoutes.post('/authenticateUser', sessionRoutes.authenticateUser(User, Session));
 
+
+/*
 // ::::: DELETE :::::
-
+*/
 
 
 // ------------------------------------
 // HTTP server
 // ------------------------------------
-app.listen(port);
-console.log(server_success_msg);
+models.sequelize.sync().then( () => {
+  app.listen(environment.port(process.env.NODE_ENV));
+  console.log('\n', environment.successMsg(process.env.NODE_ENV), '\n');
+});
 
 module.exports = app;
